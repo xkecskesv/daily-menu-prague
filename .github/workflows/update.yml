@@ -1,0 +1,51 @@
+name: Ebédmenü frissítése
+
+on:
+  schedule:
+    # 09:15 UTC = 10:15 vagy 11:15 prágai idő (téli/nyári időszámítástól függően) - kb. ebéd előtt
+    - cron: "15 9 * * 1-5"
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "templates/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: menicka-update
+  cancel-in-progress: false
+
+jobs:
+  scrape-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Repó checkout
+        uses: actions/checkout@v4
+
+      - name: Python beállítása
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Függőségek telepítése
+        run: pip install -r requirements.txt
+
+      - name: Scraper futtatása (docs/index.html generálása)
+        run: python scripts/scrape_menicka.py --debug
+
+      - name: Változások commitolása és pusholása
+        run: |
+          git config user.name "menicka-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/index.html
+          if git diff --cached --quiet; then
+            echo "Nincs változás, nincs mit commitolni."
+          else
+            git commit -m "chore: napi ebédmenü frissítés ($(date -u +'%Y-%m-%d %H:%M UTC'))"
+            git push
+          fi
