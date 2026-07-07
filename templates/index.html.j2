@@ -285,10 +285,9 @@ header.masthead{
 /* ---------------- Étterem-jegyek (kártyák) ---------------- */
 main.board{
   max-width:1100px;margin:1rem auto 4rem;padding:0 1.5rem;
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
-  gap:1.3rem;
-  align-items:start;
+  display:flex;
+  flex-direction:column;
+  gap:1.1rem;
 }
 .ticket{
   background:var(--paper);
@@ -341,21 +340,19 @@ main.board{
 
 ul.item-list{list-style:none;margin:0;padding:0;}
 ul.item-list li{
-  display:flex;align-items:baseline;gap:.4rem;
-  padding:.3rem 0;
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem .6rem;
+  padding:.35rem 0;
   font-size:.92rem;
+  border-bottom:1px dotted var(--line);
 }
-ul.item-list li .item-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-ul.item-list li .leader{
-  flex:1;border-bottom:1px dotted var(--line);
-  transform:translateY(-3px);
-  min-width:12px;
-}
+ul.item-list li .item-name{white-space:normal;overflow:visible;text-overflow:unset;flex:1 1 220px;}
+ul.item-list li .leader{display:none;}
 ul.item-list li .item-price{
   font-family:var(--font-mono);
   font-weight:700;
   color:var(--stamp-red-dark);
   white-space:nowrap;
+  margin-left:auto;
 }
 .tag-row{display:flex;gap:.3rem;margin-top:.05rem;}
 .tag{
@@ -384,7 +381,6 @@ footer{
 @media (max-width:640px){
   .masthead-inner{flex-direction:column;align-items:flex-start;}
   .stamp{width:92px;height:92px;font-size:.9;}
-  main.board{grid-template-columns:1fr;}
 }
 @media (prefers-reduced-motion:reduce){
   *{animation:none !important;transition:none !important;}
@@ -465,8 +461,8 @@ footer{
         <h3>Referenciapont</h3>
         <div class="ref-toggle">
           <label><input type="radio" name="refpoint" value="none" checked>nincs</label>
-          <label><input type="radio" name="refpoint" value="A">Pont A<span class="desc">{{ reference_points.A.label.split('–')[0].strip() }}</span></label>
-          <label><input type="radio" name="refpoint" value="B">Pont B<span class="desc">{{ reference_points.B.label.split('–')[0].strip() }}</span></label>
+          <label><input type="radio" name="refpoint" value="A">Pont A<span class="desc">{{ reference_points.A.label.split('–')[1].strip() }}</span></label>
+          <label><input type="radio" name="refpoint" value="B">Pont B<span class="desc">{{ reference_points.B.label.split('–')[1].strip() }}</span></label>
         </div>
       </div>
     </div>

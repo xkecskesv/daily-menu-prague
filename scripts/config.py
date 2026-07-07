@@ -25,16 +25,16 @@ BASE_URL = "https://www.menicka.cz/{slug}.html"
 # ---------------------------------------------------------------------------
 REFERENCE_POINTS = {
     "A": {
-        "label": "Pont A – Strojnická 7, Praha 7-Holešovice",
-        "address": "Strojnická 1430/7, 170 00 Praha 7-Holešovice",
-        "lat": 50.1016,
-        "lng": 14.4345,
+        "label": "Pont A – Rooseveltova",
+        "address": "Rooseveltova, Praha",
+        "lat": 50.1046590696134,
+        "lng": 14.434606091442127,
     },
     "B": {
-        "label": "Pont B – Rohanské nábř. 661, Karlín",
-        "address": "Rohanské nábř. 661, 186 00 Praha 8-Karlín",
-        "lat": 50.0942,
-        "lng": 14.4530,
+        "label": "Pont B – Everpure",
+        "address": "Everpure, Praha",
+        "lat": 50.09451295332917,
+        "lng": 14.444943495550659,
     },
 }
 

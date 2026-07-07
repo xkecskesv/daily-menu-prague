@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menička Praha — mai ebédmenük</title>
+<meta name="description" content="Praha 1, 3, 7, 8 aznapi ebédmenüi egy helyen, szűrhetően és távolság szerint.">
+<style>
+:root{
+  --paper:#ECE4D0;
+  --paper-alt:#E2D8BE;
+  --paper-deep:#D8CCA9;
+  --ink:#22291F;
+  --ink-soft:#4B5142;
+  --pub-green:#2E4A3B;
+  --pub-green-dark:#1D3126;
+  --stamp-red:#A23A2C;
+  --stamp-red-dark:#7E2B20;
+  --brass:#A2803D;
+  --line:#BEB090;
+  --shadow:rgba(34,41,31,.22);
+  --font-display:Georgia,'Iowan Old Style','Palatino Linotype','Book Antiqua',serif;
+  --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:'Courier New',Courier,monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(ellipse at top left, rgba(255,255,255,.25), transparent 55%),
+    var(--paper);
+  color:var(--ink);
+  font-family:var(--font-body);
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;}
+
+/* ---------------- Fejléc: pult-tábla / pecsét hangulat ---------------- */
+header.masthead{
+  position:relative;
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 2px, transparent 2px 6px),
+    linear-gradient(160deg, var(--pub-green) 0%, var(--pub-green-dark) 100%);
+  color:#EFE9D8;
+  padding:2.6rem 1.5rem 3rem;
+  overflow:hidden;
+}
+.masthead-inner{
+  max-width:1100px;
+  margin:0 auto;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:2rem;
+  flex-wrap:wrap;
+}
+.masthead h1{
+  font-family:var(--font-display);
+  font-weight:700;
+  font-size:clamp(2.1rem,5vw,3.2rem);
+  margin:0 0 .35rem;
+  letter-spacing:.5px;
+}
+.masthead h1 small{
+  display:block;
+  font-family:var(--font-mono);
+  font-size:.95rem;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  color:#C9BE9C;
+  margin-bottom:.6rem;
+}
+.masthead p.tagline{
+  margin:0;
+  max-width:34em;
+  color:#D8D1B8;
+  font-size:.98rem;
+}
+.masthead p.districts{
+  margin:.55rem 0 0;
+  font-family:var(--font-mono);
+  font-size:.85rem;
+  color:#B9C9AE;
+  letter-spacing:.5px;
+}
+
+/* pecsét-jelvény a mai dátummal */
+.stamp{
+  flex:none;
+  width:118px;height:118px;
+  border-radius:50%;
+  border:3px solid #C9BE9C;
+  outline:1px solid #C9BE9C;
+  outline-offset:4px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transform:rotate(-9deg);
+  color:#EFE9D8;
+  text-align:center;
+  font-family:var(--font-mono);
+  text-transform:uppercase;
+  letter-spacing:1px;
+  opacity:.92;
+  mix-blend-mode:normal;
+  position:relative;
+}
+.stamp::before{
+  content:"";
+  position:absolute; inset:8px;
+  border-radius:50%;
+  border:1px dashed #C9BE9C;
+}
+.stamp .stamp-label{font-size:.62rem;letter-spacing:2px;opacity:.85;}
+.stamp .stamp-date{font-size:.95rem;font-weight:700;margin-top:.2rem;line-height:1.15;}
+
+/* perforáció-csík a fejléc alján, mintha egy jegy szélét néznénk */
+.perforation{
+  height:14px;
+  background-image:radial-gradient(circle, var(--paper) 5px, transparent 5.5px);
+  background-size:24px 24px;
+  background-position:center -5px;
+  background-repeat:repeat-x;
+  background-color:var(--pub-green-dark);
+  margin-top:-1px;
+}
+
+/* ---------------- Vezérlőpult (szűrők) ---------------- */
+.toolbar{
+  max-width:1100px;
+  margin:-1.4rem auto 0;
+  padding:0 1.5rem;
+  position:relative;
+  z-index:2;
+}
+.card-panel{
+  background:var(--paper-alt);
+  border:1px solid var(--line);
+  box-shadow:0 10px 24px var(--shadow);
+  border-radius:6px;
+  padding:1.4rem 1.5rem 1.6rem;
+}
+.filter-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:1.4rem 2rem;
+  margin-bottom:1.1rem;
+}
+.filter-group{flex:1 1 220px;min-width:200px;}
+.filter-group h3{
+  font-family:var(--font-mono);
+  text-transform:uppercase;
+  font-size:.72rem;
+  letter-spacing:1.6px;
+  color:var(--ink-soft);
+  margin:0 0 .55rem;
+  border-bottom:1px dotted var(--line);
+  padding-bottom:.35rem;
+}
+.chip-row{display:flex;flex-wrap:wrap;gap:.45rem;}
+.chip{
+  font-family:var(--font-body);
+  font-size:.83rem;
+  padding:.34rem .75rem;
+  border:1px solid var(--pub-green);
+  border-radius:999px;
+  background:transparent;
+  color:var(--pub-green-dark);
+  cursor:pointer;
+  transition:background .15s, color .15s, transform .1s;
+  user-select:none;
+}
+.chip:hover{transform:translateY(-1px);}
+.chip.active{
+  background:var(--pub-green);
+  color:#F2EDDC;
+  border-color:var(--pub-green);
+}
+.chip.cuisine.active{background:var(--brass);border-color:var(--brass);color:#2A2110;}
+.chip.stamp-style.active{background:var(--stamp-red);border-color:var(--stamp-red);color:#F7EDE8;}
+
+.search-input{
+  width:100%;
+  padding:.55rem .7rem;
+  font-family:var(--font-body);
+  font-size:.92rem;
+  border:1px solid var(--line);
+  border-radius:4px;
+  background:var(--paper);
+  color:var(--ink);
+}
+.search-input:focus{outline:2px solid var(--brass);outline-offset:1px;}
+
+.range-wrap{position:relative;height:34px;margin-top:.3rem;}
+.range-wrap input[type=range]{
+  position:absolute;top:10px;left:0;width:100%;
+  -webkit-appearance:none;appearance:none;
+  background:transparent;pointer-events:none;
+}
+.range-wrap input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;pointer-events:auto;
+  width:16px;height:16px;border-radius:50%;
+  background:var(--pub-green);border:2px solid var(--paper);
+  cursor:pointer;margin-top:-6px;
+}
+.range-wrap input[type=range]::-moz-range-thumb{
+  pointer-events:auto;width:16px;height:16px;border-radius:50%;
+  background:var(--pub-green);border:2px solid var(--paper);cursor:pointer;
+}
+.range-wrap input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--line);}
+.range-wrap input[type=range]::-moz-range-track{height:3px;background:var(--line);}
+.range-values{
+  font-family:var(--font-mono);
+  font-size:.85rem;
+  color:var(--ink-soft);
+  margin-top:.15rem;
+}
+
+.ref-toggle{display:flex;gap:.5rem;flex-wrap:wrap;}
+.ref-toggle label{
+  font-size:.83rem;
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:.4rem .6rem;
+  cursor:pointer;
+  display:flex;align-items:center;gap:.4rem;
+  background:var(--paper);
+}
+.ref-toggle input{accent-color:var(--pub-green);}
+.ref-toggle .desc{display:block;font-size:.72rem;color:var(--ink-soft);}
+
+.toolbar-bottom{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:.8rem;
+  border-top:1px dotted var(--line);
+  padding-top:1rem;
+}
+.sort-select{
+  font-family:var(--font-body);
+  font-size:.85rem;
+  padding:.4rem .55rem;
+  border:1px solid var(--line);
+  border-radius:4px;
+  background:var(--paper);
+  color:var(--ink);
+}
+.btn{
+  font-family:var(--font-mono);
+  letter-spacing:.5px;
+  font-size:.85rem;
+  padding:.55rem 1rem;
+  border-radius:4px;
+  border:1px solid var(--stamp-red);
+  background:var(--stamp-red);
+  color:#F7EDE8;
+  cursor:pointer;
+  transition:transform .12s, box-shadow .12s;
+}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(162,58,44,.35);}
+.btn.ghost{
+  background:transparent;border-color:var(--ink-soft);color:var(--ink-soft);
+}
+.reset-link{
+  background:none;border:none;
+  font-family:var(--font-mono);font-size:.78rem;
+  text-decoration:underline;color:var(--ink-soft);cursor:pointer;
+  padding:0;
+}
+
+.meta-row{
+  max-width:1100px;margin:1rem auto 0;padding:0 1.5rem;
+  display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.5rem;
+}
+.result-count{
+  font-family:var(--font-mono);
+  font-size:.85rem;
+  color:var(--ink-soft);
+}
+.result-count strong{color:var(--pub-green-dark);font-size:1rem;}
+
+/* ---------------- Étterem-jegyek (kártyák) ---------------- */
+main.board{
+  max-width:1100px;margin:1rem auto 4rem;padding:0 1.5rem;
+  display:flex;
+  flex-direction:column;
+  gap:1.1rem;
+}
+.ticket{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:4px;
+  box-shadow:0 6px 14px var(--shadow);
+  padding:1.1rem 1.15rem 1rem;
+  position:relative;
+  transition:box-shadow .2s, transform .2s;
+}
+.ticket.flash{
+  animation:flash-pop 1.1s ease;
+}
+@keyframes flash-pop{
+  0%{box-shadow:0 0 0 3px var(--brass), 0 6px 14px var(--shadow);}
+  100%{box-shadow:0 6px 14px var(--shadow);}
+}
+.ticket-head{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem;
+  border-bottom:1px dashed var(--line);
+  padding-bottom:.55rem;margin-bottom:.6rem;
+}
+.ticket-head h2{
+  font-family:var(--font-display);
+  font-size:1.12rem;margin:0 0 .2rem;
+  color:var(--pub-green-dark);
+}
+.ticket-head a{text-decoration:none;}
+.ticket-head a:hover{text-decoration:underline;}
+.ticket-meta{
+  font-family:var(--font-mono);font-size:.72rem;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--ink-soft);
+}
+.district-badge{
+  flex:none;
+  font-family:var(--font-mono);
+  font-size:.68rem;
+  border:1px solid var(--pub-green);
+  color:var(--pub-green-dark);
+  border-radius:999px;
+  padding:.2rem .55rem;
+  white-space:nowrap;
+}
+.dist-badges{margin-top:.3rem;display:flex;gap:.4rem;flex-wrap:wrap;}
+.dist-badge{
+  font-family:var(--font-mono);font-size:.68rem;
+  background:var(--paper-deep);border-radius:3px;padding:.15rem .4rem;
+  color:var(--ink-soft);
+}
+
+ul.item-list{list-style:none;margin:0;padding:0;}
+ul.item-list li{
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem .6rem;
+  padding:.35rem 0;
+  font-size:.92rem;
+  border-bottom:1px dotted var(--line);
+}
+ul.item-list li .item-name{white-space:normal;overflow:visible;text-overflow:unset;flex:1 1 220px;}
+ul.item-list li .leader{display:none;}
+ul.item-list li .item-price{
+  font-family:var(--font-mono);
+  font-weight:700;
+  color:var(--stamp-red-dark);
+  white-space:nowrap;
+  margin-left:auto;
+}
+.tag-row{display:flex;gap:.3rem;margin-top:.05rem;}
+.tag{
+  font-family:var(--font-mono);
+  font-size:.6rem;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  color:var(--ink-soft);
+  border-left:2px solid var(--brass);
+  padding-left:.3rem;
+}
+.empty-state{
+  grid-column:1/-1;
+  text-align:center;
+  padding:3rem 1rem;
+  font-family:var(--font-mono);
+  color:var(--ink-soft);
+}
+
+footer{
+  max-width:1100px;margin:0 auto 3rem;padding:0 1.5rem;
+  font-family:var(--font-mono);font-size:.75rem;color:var(--ink-soft);
+  border-top:1px dotted var(--line);padding-top:1rem;
+}
+
+@media (max-width:640px){
+  .masthead-inner{flex-direction:column;align-items:flex-start;}
+  .stamp{width:92px;height:92px;font-size:.9;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important;}
+}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px;}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div>
+      <h1><small>Jídelní lístek · denní menu</small>Menička Praha</h1>
+      <p class="tagline">A kiválasztott prágai kerületek aznapi ebédmenüi egy helyen — szűrve, rendezve, gyaloglási idővel.</p>
+      <p class="districts">Praha 1 · Praha 3 · Praha 7 · Praha 8</p>
+    </div>
+    <div class="stamp" aria-hidden="true">
+      <div>
+        <div class="stamp-label">frissítve</div>
+        <div class="stamp-date">2026. 07. 04. 10:35</div>
+      </div>
+    </div>
+  </div>
+</header>
+<div class="perforation" aria-hidden="true"></div>
+
+<div class="toolbar">
+  <div class="card-panel">
+    <div class="filter-row">
+      <div class="filter-group">
+        <h3>Kerület</h3>
+        <div class="chip-row" id="district-filters">
+          
+          <button type="button" class="chip" data-filter="district" data-value="praha-1">Praha 1</button>
+          
+          <button type="button" class="chip" data-filter="district" data-value="praha-3">Praha 3</button>
+          
+          <button type="button" class="chip" data-filter="district" data-value="praha-7">Praha 7</button>
+          
+          <button type="button" class="chip" data-filter="district" data-value="praha-8">Praha 8</button>
+          
+        </div>
+      </div>
+
+      <div class="filter-group" style="flex:1 1 280px;">
+        <h3>Keresés</h3>
+        <input type="text" id="keyword-search" class="search-input" placeholder="étel vagy étterem neve…" autocomplete="off">
+      </div>
+
+      <div class="filter-group">
+        <h3>Ár (Kč)</h3>
+        <div class="range-wrap">
+          <input type="range" id="price-min" min="34" max="325" value="34" step="5">
+          <input type="range" id="price-max" min="34" max="325" value="325" step="5">
+        </div>
+        <div class="range-values"><span id="price-min-label">34</span> – <span id="price-max-label">325</span> Kč</div>
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <div class="filter-group">
+        <h3>Kategória</h3>
+        <div class="chip-row" id="category-filters">
+          <button type="button" class="chip" data-filter="category" data-value="leves">leves</button>
+          <button type="button" class="chip" data-filter="category" data-value="főétel">főétel</button>
+          <button type="button" class="chip" data-filter="category" data-value="saláta">saláta</button>
+          <button type="button" class="chip" data-filter="category" data-value="desszert">desszert</button>
+          <button type="button" class="chip" data-filter="category" data-value="ital">ital</button>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <h3>Konyha típusa</h3>
+        <div class="chip-row" id="cuisine-filters">
+          <button type="button" class="chip cuisine" data-filter="cuisine" data-value="cseh">cseh</button>
+          <button type="button" class="chip cuisine" data-filter="cuisine" data-value="ázsiai">ázsiai</button>
+          <button type="button" class="chip cuisine" data-filter="cuisine" data-value="olasz">olasz</button>
+          <button type="button" class="chip cuisine" data-filter="cuisine" data-value="mexikói">mexikói</button>
+          <button type="button" class="chip cuisine" data-filter="cuisine" data-value="egyéb">egyéb</button>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <h3>Referenciapont</h3>
+        <div class="ref-toggle">
+          <label><input type="radio" name="refpoint" value="none" checked>nincs</label>
+          <label><input type="radio" name="refpoint" value="A">Pont A<span class="desc">Rooseveltova</span></label>
+          <label><input type="radio" name="refpoint" value="B">Pont B<span class="desc">Everpure</span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar-bottom">
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
+        <label for="sort-select" style="font-family:var(--font-mono);font-size:.78rem;color:var(--ink-soft);">rendezés:</label>
+        <select id="sort-select" class="sort-select">
+          <option value="value">legjobb ár/érték</option>
+          <option value="price-asc">ár szerint ↑</option>
+          <option value="price-desc">ár szerint ↓</option>
+        </select>
+        <button type="button" class="reset-link" id="reset-filters">szűrők törlése</button>
+      </div>
+      <button type="button" class="btn" id="surprise-btn">🎲 Napi meglepetés</button>
+    </div>
+  </div>
+</div>
+
+<div class="meta-row">
+  <div class="result-count" id="result-count">betöltés…</div>
+  <div class="result-count">összesen 23 étterem, 188 étel a lekérés idején</div>
+</div>
+
+<main class="board" id="results" aria-live="polite"></main>
+
+<footer>
+  Forrás: menicka.cz · a koordináták és a kategorizálás manuálisan karbantartott, fix kulcsszó-szótár alapján készül (nincs AI-hívás a feldolgozásban).
+  Utoljára frissítve: 2026. 07. 04. 10:35.
+</footer>
+
+<script id="restaurants-data" type="application/json">[{"slug": "9302-fuze", "name": "FUZE", "district": "Praha 1", "districtSlug": "praha-1", "url": "https://www.menicka.cz/9302-fuze.html", "distA_km": 1.8, "distA_min": 22, "distB_km": 0.98, "distB_min": 12, "items": [{"name": "Vepřová plec s kysaným zelím a šest houskových knedlíků 1 3", "price": 199, "category": "főétel", "cuisine": "cseh"}, {"name": "Kořeněné grilované kachní prsíčko batátové pyré, pečená zelenina, lehká perníková omáčka 1 3 6 7", "price": 229, "category": "főétel", "cuisine": "egyéb"}, {"name": "Poke s marinovaným lososem goma wakame, mangem, klíčky, kukuřicí, wasabi a zázvorem 1 2 3 4 5 6 7 8", "price": 239, "category": "főétel", "cuisine": "ázsiai"}, {"name": "Burger s trhanou hovězí plecí sýrem raklet, grilovanou cuketou, bazalkou a parmskou šunkou 1 3", "price": 239, "category": "főétel", "cuisine": "egyéb"}, {"name": "Trhané listy salátu se smaženým kuřecím prsíčkem v kukuřičné strouhance, čerstvá zelenina a dresink Tisíc ostrovů 1 3 7", "price": 239, "category": "saláta", "cuisine": "egyéb"}, {"name": "Náš vlažný koláč se zmrzlinou z vaječného likéru 1 3", "price": 89, "category": "desszert", "cuisine": "egyéb"}]}, {"slug": "3704-malostransky-restaurant-pod-petrinem", "name": "Malostranský Restaurant Pod Petříne", "district": "Praha 1", "districtSlug": "praha-1", "url": "https://www.menicka.cz/3704-malostransky-restaurant-pod-petrinem.html", "distA_km": null, "distA_min": null, "distB_km": null, "distB_min": null, "items": [{"name": "Dršťková (obsahuje 1,3,7,9)", "price": 55, "category": "főétel", "cuisine": "egyéb"}, {"name": "Pečená 1/4 kachny, červené zelí, variace knedlíků (obsahuje 1,3,7,9)", "price": 279, "category": "főétel", "cuisine": "cseh"}, {"name": "Řízečky z vepřové panenky, petrželkové brambory, citrón (obsahuje 1,3,6,7,9,11)", "price": 279, "category": "főétel", "cuisine": "egyéb"}, {"name": "Hovězí nudličky s dijónskou omáčkou, jasmínová rýže (obsahuje 1,3,7,9,10)", "price": 239, "category": "főétel", "cuisine": "egyéb"}, {"name": "Hovězí kostky na tlučeném pepři, houskové knedlíky (obsahuje 1,3,7,9)", "price": 239, "category": "főétel", "cuisine": "cseh"}, {"name": "Opečená vinná klobása, vařené brambory, hořčice (obsahuje 1,3,7,9)", "price": 239, "category": "főétel", "cuisine": "egyéb"}, {"name": "Plněné bramborové knedlíky uzeným masem, bílé zelí (obsahuje 1,3,7,9)", "price": 239, "category": "főétel", "cuisine": "cseh"}, {"name": "Pikantní kuřecí křídla \" HOT WIGS \", chléb, koktejlová omáčka (obsahuje 1,3,7,9)", "price": 209, "category": "főétel", "cuisine": "egyéb"}]}, {"slug": "9868-himalaya-restaurant", "name": "Himalaya Restaurant", "district": "Praha 1", "districtSlug": "praha-1", "url": "https://www.menicka.cz/9868-himalaya-restaurant.html", "distA_km": 3.03, "distA_min": 36, "distB_km": 2.39, "distB_min": 29, "items": [{"name": "Stálá nabídka Tikka Menu - Kousky kuřete lehce kořeněné a grilované v peci Tandoori, podávané se salátem a nanem", "price": 195, "category": "saláta", "cuisine": "egyéb"}, {"name": "Tandoori menu - Kuřecí stehno marinované v jogurtu a tandoori omáčce, grilované v tandoori peci, podávané se salátem a nanem", "price": 189, "category": "saláta", "cuisine": "egyéb"}, {"name": "Kebabové menu - Mleté kuře, mouka z cizrny a koření, podávané se salátem a nanem", "price": 199, "category": "saláta", "cuisine": "egyéb"}, {"name": "Madrasské menu - (kuřecí/zeleninové) Kousky kuřete nebo zeleniny vařené v mírně pálivé omáčce, podávané s rýží a salátem", "price": 189, "category": "saláta", "cuisine": "egyéb"}, {"name": "Butter chicken - jemně kořeněné kuřecí kousky připravené na másle, podávané s rýží", "price": 199, "category": "főétel", "cuisine": "egyéb"}]}, {"slug": "1886-u-jindrisske-veze", "name": "U Jindřišské věže", "district": "Praha 1", "districtSlug": "praha-1", "url": "https://www.menicka.cz/1886-u-jindrisske-veze.html", "distA_km": 2.27, "distA_min": 27, "distB_km": 1.57, "distB_min": 19, "items": [{"name": "Hovězí vývar s masem a nudlemi", "price": 59, "category": "leves", "cuisine": "cseh"}, {"name": "Hrachová s krutony", "price": 59, "category": "főétel", "cuisine": "egyéb"}, {"name": "150g Kuřecí steak zapečený se šunkou a sýrem, hranolky", "price": 199, "category": "főétel", "cuisine": "egyéb"}, {"name": "150g Medailonky z hovězí roštěné podávané na listovém salátu, sázené vejce, hořčičný dresink", "price": 239, "category": "saláta", "cuisine": "egyéb"}, {"name": "350g Listový salát s čerstvou zeleninou, pršutem, žlutým melounem a balsamikem, rozpečená bagetka", "price": 199, "category": "saláta", "cuisine": "ázsiai"}, {"name": "150g Smažený filet z tresky, vařený brambor, citrón", "price": 189, "category": "főétel", "cuisine": "egyéb"}, {"name": "130g Pikantní kuřecí směs, bramboráčky", "price": 176, "category": "főétel", "cuisine": "egyéb"}, {"name": "130g Svíčková na smetaně s citrónem, brusinkami a šlehačkou, houskový knedlík", "price": 194, "category": "főétel", "cuisine": "cseh"}, {"name": "130g Hovězí guláš s barevnou cibulkou, houskový knedlík", "price": 189, "category": "főétel", "cuisine": "cseh"}, {"name": "130g Vepřová pečeně na žampionech, dušená rýže", "price": 176, "category": "főétel", "cuisine": "cseh"}, {"name": "150g Moravský vrabec, bramborový knedlík, červené zelí", "price": 179, "category": "főétel", "cuisine": "cseh"}, {"name": "150g Plněný paprikový lusk, rajská omáčka, houskový knedlík", "price": 179, "category": "főétel", "cuisine": "cseh"}]}, {"slug": "9914-jidelna-svetozor", "name": "Jídelna SVĚTOZOR", "district": "Praha 1", "districtSlug": "praha-1", "url": "https://www.menicka.cz/9914-jidelna-svetozor.html", "distA_km": 2.64, "distA_min": 32, "distB_km": 2.01, "distB_min": 24, "items": [{"name": "Denní menu: Polévka, hlavní chod, zákusek", "price": 169, "category": "leves", "cuisine": "egyéb"}, {"name": "Hovězí vývar s nudlemi", "price": 42, "category": "leves", "cuisine": "cseh"}, {"name": "Žampionový krém", "price": 49, "category": "leves", "cuisine": "egyéb"}, {"name": "Pečená ¼ kachny, červené zelí, variace knedlíků", "price": 219, "category": "főétel", "cuisine": "cseh"}, {"name": "Naše plněné bramborové knedlíky uzeným masem, zelí, cibulka", "price": 189, "category": "főétel", "cuisine": "cseh"}, {"name": "Katův šleh, rýže", "price": 189, "category": "főétel", "cuisine": "egyéb"}, {"name": "Smažený krůtí karbanátek s feta sýrem, bramborová kaše, okurka", "price": 189, "category": "főétel", "cuisine": "egyéb"}, {"name": "Svíčková omáčka, hovězí maso zadní, houskové knedlíky", "price": 189, "category": "főétel", "cuisine": "cseh"}, {"name": "Koprová omáčka, hovězí maso zadní, houskové knedlíky", "price": 179, "category": "főétel", "cuisine": "cseh"}, {"name": "Křenová omáčka, hovězí maso zadní, houskové knedlíky", "price": 179, "category": "főétel", "cuisine": "cseh"}, {"name": "Debrecínský vepřový guláš, těstoviny", "price": 159, "category": "főétel", "cuisine": "cseh"}, {"name": "Vepřová kýta na žampionech, rýže", "price": 159, "category": "főétel", "cuisine": "egyéb"}, {"name": "Vepřové kostky na česneku, rýže", "price": 149, "category": "főétel", "cuisine": "egyéb"}, {"name": "Francouzské brambory, okurka", "price": 149, "category": "főétel", "cuisine": "egyéb"}]}, {"slug": "9723-isaac-bbq", "name": "Isaac BBQ", "district": "Praha 1", "districtSlug": "praha-1", "url": "https://www.menicka.cz/9723-isaac-bbq.html", "distA_km": null, "distA_min": null, "distB_km": null, "distB_min": null, "items": [{"name": "K dispozici útery - pátek, 11-15h Lunch Smash Burgers Dva plácky mletého hovězího (140g) z Amaso nebo vege plácek v brioche bulce v pěti variantách Classic: Americký sýr, speciální omáčka, okurky", "price": 275, "category": "főétel", "cuisine": "egyéb"}, {"name": "Oklahoma: Hodně grilované cibule, americký sýr, okurky, hořčice", "price": 285, "category": "főétel", "cuisine": "egyéb"}, {"name": "Cuban: Uzená vepřová plec, ementál, okurky, dijonaise", "price": 325, "category": "főétel", "cuisine": "egyéb"}, {"name": "Buffalo: pikantní Buffalo omáčka, dressing z modrého sýru, okurky", "price": 285, "category": "főétel", "cuisine": "egyéb"}, {"name": "Korean: Chipotle kimchi, sezamová majonéza, cheddar, okurky", "price": 295, "category": "főétel", "cuisine": "egyéb"}, {"name": "Meničko Přidej coleslaw nebo kajunské hranolky", "price": 95, "category": "főétel", "cuisine": "egyéb"}, {"name": "Přídej broskvový ledový čaj nebo jahodovou citronádu", "price": 65, "category": "főétel", "cuisine": "egyéb"}, {"name": "Přidej přílohu + nápoj", "price": 145, "category": "főétel", "cuisine": "egyéb"}]}, {"slug": "2103-hostinec-u-rotundy", "name": "Hostinec u Rotundy", "district": "Praha 1", "districtSlug": "praha-1", "url": "https://www.menicka.cz/2103-hostinec-u-rotundy.html", "distA_km": 2.85, "distA_min": 34, "distB_km": 2.55, "distB_min": 31, "items": [{"name": "Garlic soup with cheese and croutons", "price": 69, "category": "főétel", "cuisine": "egyéb"}, {"name": "Duck leg, red and white cabbage, mix of dumpings", "price": 299, "category": "főétel", "cuisine": "egyéb"}, {"name": "Apple struedel, ice cream, whipped cream", "price": 118, "category": "főétel", "cuisine": "egyéb"}]}, {"slug": "9425-u-tri-zlatych-trojek", "name": "U tří zlatých trojek", "district": "Praha 1", "districtSlug": "praha-1", "url": "https://www.menicka.cz/9425-u-tri-zlatych-trojek.html", "distA_km": 2.74, "distA_min": 33, "distB_km": 2.91, "distB_min": 35, "items": [{"name": "Hovězí vývar s nudlemi a masem", "price": 65, "category": "leves", "cuisine": "cseh"}, {"name": "Hovězí tatarák s topinkami", "price": 295, "category": "főétel", "cuisine": "egyéb"}, {"name": "Kachní prso na pomerančích se špenátovým pyré", "price": 295, "category": "főétel", "cuisine": "egyéb"}, {"name": "Zmrzlinový pohár", "price": 165, "category": "főétel", "cuisine": "egyéb"}]}, {"slug": "9733-spravovna", "name": "Spravovna", "district": "Praha 3", "districtSlug": "praha-3", "url": "https://www.menicka.cz/9733-spravovna.html", "distA_km": 3.0, "distA_min": 36, "distB_km": 1.73, "distB_min": 21, "items": [{"name": "Kuřecí kari krém s kukuřicí", "price": 69, "category": "leves", "cuisine": "ázsiai"}, {"name": "Lingiune aglio olio e peperoncino s grilovanými krevetami, avokádové pesto", "price": 259, "category": "főétel", "cuisine": "egyéb"}, {"name": "Tažený hovězí brisket, dýňové pyré, restované kapustičky, portské demi glace", "price": 279, "category": "főétel", "cuisine": "egyéb"}, {"name": "Grilovaný Rumpsteak, steakové hranolky s lanýžem, pepřový demi glace", "price": 289, "category": "főétel", "cuisine": "egyéb"}]}, {"slug": "5983-mikrofarma", "name": "Mikrofarma", "district": "Praha 3", "districtSlug": "praha-3", "url": "https://www.menicka.cz/5983-mikrofarma.html", "distA_km": null, "distA_min": null, "distB_km": null, "distB_min": null, "items": [{"name": "Hovězí vývar", "price": 55, "category": "leves", "cuisine": "cseh"}, {"name": "Pečené pikantní kuře, jasmínová rýže", "price": 269, "category": "főétel", "cuisine": "cseh"}, {"name": "Kuřecí quesadilla, salátek", "price": 265, "category": "saláta", "cuisine": "mexikói"}, {"name": "Vepřová kotleta na grilu, šťouchy", "price": 259, "category": "főétel", "cuisine": "egyéb"}, {"name": "Šunkový SANDWICH se sýrem", "price": 245, "category": "főétel", "cuisine": "egyéb"}]}, {"slug": "7856-lavicka-zahradni-restaurace", "name": "Lavička zahradní restaurace", "district": "Praha 3", "districtSlug": "praha-3", "url": "https://www.menicka.cz/7856-lavicka-zahradni-restaurace.html", "distA_km": null, "distA_min": null, "distB_km": null, "distB_min": null, "items": [{"name": "Tomatová s bazalkovým pestem a parmazánem", "price": 65, "category": "főétel", "cuisine": "egyéb"}, {"name": "Plátek ze špikovaného hovězího chuck tenderu, znojemská omáčka s kyselými okurkami, dušená jasmínová rýže", "price": 225, "category": "főétel", "cuisine": "egyéb"}, {"name": "Filírovaná vepřová panenka, šťouchané brambory s petrželkou, karotka restovaná na másle", "price": 220, "category": "főétel", "cuisine": "egyéb"}, {"name": "Burger z mletého vepřového masa s čedarem, ledovým salátem, rajčetem, červenou cibulí a česnekovou majonézou, bramborové dukátky", "price": 215, "category": "saláta", "cuisine": "egyéb"}, {"name": "Pečená vepřová krkovice na světlém pivu se slaninou a žampióny, pečené kořeněné brambory", "price": 200, "category": "főétel", "cuisine": "cseh"}]}, {"slug": "7236-restaurace-u-tri-prasatek", "name": "Restaurace U Tří Prasátek", "district": "Praha 3", "districtSlug": "praha-3", "url": "https://www.menicka.cz/7236-restaurace-u-tri-prasatek.html", "distA_km": null, "distA_min": null, "distB_km": null, "distB_min": null, "items": [{"name": "Cibulačka se sýrovým toustem", "price": 55, "category": "főétel", "cuisine": "egyéb"}, {"name": "300g Šafránové krémové rizoto s lososem a špenátem, parmazán", "price": 225, "category": "leves", "cuisine": "egyéb"}, {"name": "200g Smažený Holandský řízek, bramborová kaše, okurkový salát, kyselá okurka", "price": 189, "category": "saláta", "cuisine": "cseh"}, {"name": "150g Vepřová játra na cibulce, dušená rýže basmati", "price": 189, "category": "főétel", "cuisine": "egyéb"}, {"name": "150g Vepřové výpečky, dušené zelí, bramborový knedlík", "price": 195, "category": "főétel", "cuisine": "cseh"}, {"name": "250g Caesar salát s kuřecím masem, slaninou, parmazánem a krutony", "price": 215, "category": "saláta", "cuisine": "ázsiai"}, {"name": "150g Smažený vepřový řízek z kotlety, bramborový salát", "price": 195, "category": "saláta", "cuisine": "cseh"}, {"name": "150g Kuřecí stripsy s hranolky a česnekovým dipem", "price": 195, "category": "főétel", "cuisine": "egyéb"}, {"name": "150g Svíčková na smetaně s brusinkovým terčem houskový knedlík", "price": 215, "category": "főétel", "cuisine": "cseh"}, {"name": "150g Hovězí guláš \"tři prasátka\" s červenou cibulkou, domácí bramboráčky", "price": 215, "category": "főétel", "cuisine": "cseh"}, {"name": "300g Kuřecí křídla ve sladko-pálivé omáčce, hranolky, česnekový dip", "price": 235, "category": "főétel", "cuisine": "egyéb"}, {"name": "1/4 Kachny pečené na kmíně, červené zelí, bramborové knedlíky", "price": 265, "category": "főétel", "cuisine": "cseh"}, {"name": "150g Vepřová panenka s pepřovou omáčkou, opečené brambory", "price": 215, "category": "főétel", "cuisine": "cseh"}]}, {"slug": "8700-u-ceske-chalupy", "name": "U české chalupy", "district": "Praha 3", "districtSlug": "praha-3", "url": "https://www.menicka.cz/8700-u-ceske-chalupy.html", "distA_km": null, "distA_min": null, "distB_km": null, "distB_min": null, "items": [{"name": "Hrachová s klobásou", "price": 45, "category": "főétel", "cuisine": "egyéb"}, {"name": "200g Medailonky z vepřové panenky, houbová omáčka, hranolky", "price": 235, "category": "főétel", "cuisine": "egyéb"}, {"name": "180g Hovězí guláš, houskový knedlík", "price": 195, "category": "főétel", "cuisine": "cseh"}, {"name": "180g Kuřecí steak s pepřovou omáčkou, hranolky", "price": 170, "category": "főétel", "cuisine": "egyéb"}, {"name": "180g Smažený vepřový řízek, vařený brambor, okurka", "price": 165, "category": "főétel", "cuisine": "cseh"}, {"name": "180g Kuřecí na slanině, dušená rýže", "price": 160, "category": "főétel", "cuisine": "egyéb"}, {"name": "120g Smažený sýr, vařený brambor, tatarka", "price": 160, "category": "főétel", "cuisine": "egyéb"}]}, {"slug": "8737-pivnice-u-sadu", "name": "Pivnice U Sadu", "district": "Praha 3", "districtSlug": "praha-3", "url": "https://www.menicka.cz/8737-pivnice-u-sadu.html", "distA_km": null, "distA_min": null, "distB_km": null, "distB_min": null, "items": [{"name": "Hovězí vývar s játrovými knedlíčky, zeleninou a nudlemi", "price": 49, "category": "leves", "cuisine": "cseh"}, {"name": "Cuketový krém s máslovými krutony", "price": 59, "category": "leves", "cuisine": "egyéb"}, {"name": "Česnečka s olomouckým syrečkem, šunkou a chlebovými krutóny", "price": 99, "category": "főétel", "cuisine": "egyéb"}, {"name": "200g Grilovaný steak z vykostěné vepřové kotletky, americké brambory, jemná pepřová omáčka", "price": 229, "category": "főétel", "cuisine": "egyéb"}, {"name": "Kuřecí paličky pečené na přepuštěném másle, vařené brambory, okurkový salátek", "price": 199, "category": "saláta", "cuisine": "cseh"}, {"name": "Hovězí guláš sypaný červenou cibulkou, 3ks domácí bramboráčky", "price": 219, "category": "főétel", "cuisine": "cseh"}, {"name": "Smažený řízek z Přeštického pašíka, domácí bramborový salát s majonézou", "price": 209, "category": "saláta", "cuisine": "cseh"}, {"name": "Caesar salát s kuřecími nugetkami, máslovými krutony a bylinkami", "price": 199, "category": "saláta", "cuisine": "egyéb"}, {"name": "Cuketa v sýrovém těstíčku, vařené brambory, naše tatarská omáčka", "price": 199, "category": "főétel", "cuisine": "egyéb"}, {"name": "Moravský vrabec, variace zelí, domácí špekové knedlíky", "price": 199, "category": "főétel", "cuisine": "cseh"}, {"name": "Chicken Burger, (mleté kuřecí maso, ledový salát, rajče, kyselá okurka, červená cibule, pikantní majonéza), farmářské hranolky-nachos", "price": 239, "category": "saláta", "cuisine": "egyéb"}, {"name": "3ks Lívance s lesním ovocem a karamelem", "price": 159, "category": "főétel", "cuisine": "egyéb"}]}, {"slug": "2366-restaurace-u-3-trojek", "name": "Restaurace U 3 trojek", "district": "Praha 3", "districtSlug": "praha-3", "url": "https://www.menicka.cz/2366-restaurace-u-3-trojek.html", "distA_km": 2.47, "distA_min": 30, "distB_km": 1.13, "distB_min": 14, "items": [{"name": "Zelná s uzeninou nebo hovězí vývar s těstovinou", "price": 39, "category": "leves", "cuisine": "cseh"}, {"name": "Hovězí guláš, houskový knedlík", "price": 148, "category": "főétel", "cuisine": "cseh"}, {"name": "Moravský vrabec, chlupatý knedlík, zelí", "price": 148, "category": "főétel", "cuisine": "cseh"}, {"name": "Kuřecí prsa dle rychtáře, hranolky", "price": 148, "category": "főétel", "cuisine": "egyéb"}, {"name": "Smažený mix řízečků, brambor, citrón", "price": 148, "category": "főétel", "cuisine": "egyéb"}, {"name": "Srbské kuřecí rizoto, strouhaný sýr, okurka", "price": 148, "category": "főétel", "cuisine": "egyéb"}, {"name": "Smažená nebo přírodní tilápie nilská, brambor, citrón", "price": 148, "category": "főétel", "cuisine": "egyéb"}, {"name": "GRIL-MIX (hovězí, vepřové, kuřecí), am. brambor", "price": 166, "category": "főétel", "cuisine": "egyéb"}, {"name": "Míchaný salát", "price": 45, "category": "saláta", "cuisine": "egyéb"}, {"name": "Šopský salát", "price": 55, "category": "saláta", "cuisine": "egyéb"}, {"name": "Okurkový salát", "price": 45, "category": "saláta", "cuisine": "egyéb"}, {"name": "Rajčatový salát", "price": 45, "category": "saláta", "cuisine": "egyéb"}]}, {"slug": "4834-ztraceny-raj", "name": "Ztracený ráj", "district": "Praha 7", "districtSlug": "praha-7", "url": "https://www.menicka.cz/4834-ztraceny-raj.html", "distA_km": 1.06, "distA_min": 13, "distB_km": 1.86, "distB_min": 22, "items": [{"name": "Hovězí vývar s játrovými knedlíčky, zeleninou a těstovinou", "price": 39, "category": "leves", "cuisine": "cseh"}, {"name": "Vepřové kostky dušené v mrkvi s vařeným bramborem", "price": 189, "category": "főétel", "cuisine": "egyéb"}, {"name": "Dančí guláš s čerstvou cibulkou a houskovým knedlíkem", "price": 189, "category": "főétel", "cuisine": "cseh"}, {"name": "Smažený camembert s vařeným bramborem a domácí tatarskou omáčkou", "price": 189, "category": "főétel", "cuisine": "egyéb"}, {"name": "Pikantní kuřecí směs s hranolky", "price": 189, "category": "főétel", "cuisine": "egyéb"}, {"name": "Pečená vepřová krkovice se zelím a bramborovým knedlíkem", "price": 189, "category": "főétel", "cuisine": "cseh"}]}, {"slug": "6513-domazlicka-jizba", "name": "Domažlická Jizba", "district": "Praha 7", "districtSlug": "praha-7", "url": "https://www.menicka.cz/6513-domazlicka-jizba.html", "distA_km": 0.62, "distA_min": 7, "distB_km": 0.94, "distB_min": 11, "items": [{"name": "0,3l Cibulová polévka se sýrem", "price": 55, "category": "leves", "cuisine": "egyéb"}, {"name": "150g Vepřová líčka na kořenové zelenině a červeném víně, šťouchané brambory s cibulkou, slaninou a petrželkou, nakládaná okurka", "price": 189, "category": "főétel", "cuisine": "ázsiai"}, {"name": "150g Vepřové výpečky na černém pivu, bramborový knedlík, červené zelí", "price": 179, "category": "főétel", "cuisine": "cseh"}, {"name": "150g Smažený vepřový kotlet plněný camembertem a anglickou slaninou, smažené bramborové hranolky, pikantní dip", "price": 205, "category": "főétel", "cuisine": "egyéb"}, {"name": "150g Grilovaná kuřecí prsa s přelivem ze smetany, kaparů a jalapeňos, smažené bramborové hranolky", "price": 205, "category": "főétel", "cuisine": "egyéb"}, {"name": "150g Anglická vepřová játra s restovanou cibulkou, kořeněné americké brambory, tatarská omáčka", "price": 182, "category": "főétel", "cuisine": "egyéb"}, {"name": "3ks Kynuté meruňkové knedlíky se šlehačkou, zakysanou smetanou, máslem, cukrem a čokoládovou polevou", "price": 169, "category": "leves", "cuisine": "cseh"}, {"name": "150g Hovězí guláš na černém pivu Master, houskový knedlík, cibulka", "price": 185, "category": "főétel", "cuisine": "cseh"}, {"name": "150g Hovězí svíčková na smetaně, houskový knedlík, brusinkový terč, citron", "price": 195, "category": "főétel", "cuisine": "cseh"}]}, {"slug": "6512-u-houbare", "name": "U Houbaře", "district": "Praha 7", "districtSlug": "praha-7", "url": "https://www.menicka.cz/6512-u-houbare.html", "distA_km": 0.4, "distA_min": 5, "distB_km": 1.11, "distB_min": 13, "items": [{"name": "0,3l Česneková polévka se sýrem", "price": 52, "category": "leves", "cuisine": "egyéb"}, {"name": "150g Nudličky z roštěné z mladého býka Stroganoff, kořeněné americké brambory", "price": 189, "category": "főétel", "cuisine": "egyéb"}, {"name": "150g Uzená vepřová krkovička, čočka na kyselo, voilské oko, nakládaná okurka", "price": 179, "category": "főétel", "cuisine": "cseh"}, {"name": "150g Pečená vepřová plec po selsku, bramborový a houskový knedlík, kysané zelí", "price": 175, "category": "főétel", "cuisine": "cseh"}, {"name": "150g Hovězí plátek na žampionech a kořenové zelenině, bramborový knedlík", "price": 195, "category": "főétel", "cuisine": "cseh"}, {"name": "150g Hovězí svíčková na smetaně, houskový knedlík, brusinkový terč, citron", "price": 195, "category": "főétel", "cuisine": "cseh"}, {"name": "150g Hovězí guláš na černém pivu, cibulka, houskový knedlík", "price": 182, "category": "főétel", "cuisine": "cseh"}]}, {"slug": "5118-holesovicka-sedma", "name": "Holešovická Sedma", "district": "Praha 7", "districtSlug": "praha-7", "url": "https://www.menicka.cz/5118-holesovicka-sedma.html", "distA_km": 0.48, "distA_min": 6, "distB_km": 1.07, "distB_min": 13, "items": [{"name": "Bílá fazolová s restovaným salámem Chorizo … 1, 7 White bean soup with sautéed chorizo sausage", "price": 57, "category": "főétel", "cuisine": "egyéb"}, {"name": "Řízek z vepřové krkovice smažený v trojobalu, bramborový salát s Gothajem, zeleninou a majonézou, citrón … 1, 3, 7, 9, 10 Breaded pork neck schnitzel fried in a breadcrumb coating, potato salad with Gothaj sausage, vegetables and", "price": 179, "category": "saláta", "cuisine": "cseh"}, {"name": "Znojemská hovězí pečeně, jasmínová rýže … 1, 7 Znojmo-style roast beef with jasmine rice", "price": 189, "category": "főétel", "cuisine": "cseh"}, {"name": "Krůtí výpečky z prsou a stehen pečené na kmínu a cibuli, kysané zelí, špekové knedlíky … 1, 3, 7 Roasted turkey breast and thigh pieces with caraway seeds and onion, sauerkraut, bacon dumplings", "price": 189, "category": "főétel", "cuisine": "cseh"}, {"name": "VEPŘOVÝ T-BONE STEAK s drceným pepřem a grilovaný na ohni, gratinované brambory smetanou a parmazánem, máslová kukuřice se šalotkou a česnekem, vepřové glazé se zeleným pepřem", "price": 259, "category": "főétel", "cuisine": "egyéb"}, {"name": "OKOUNÍK ČERVENÝ grilovaný na másle se salátem z kuskusu, rukoly, sušených a cherry rajčat, omáčka rybí bisque ... 1, 4, 7 Grilled red snapper in butter, served with couscous salad, arugula, dried and cherry tomatoes, and fish bisq", "price": 229, "category": "saláta", "cuisine": "egyéb"}, {"name": "KUŘECÍ STEHNO marinované v koření a grilované na ohni, krémové orzoto se zeleninou a pikantní klobásou ... 1, 3, 7 Marinated grilled chicken thigh cooked over fire, creamy orzotto with vegetables and spicy sausage", "price": 189, "category": "leves", "cuisine": "egyéb"}, {"name": "KUŘECÍ ŘÍZKY smažené v klasické strouhance, bramborová kaše s máslem, nakládané okurky, citrón ... 1, 3, 7 Breaded fried chicken cutlets, mashed potatoes with butter, pickled cucumbers, and lemon", "price": 179, "category": "főétel", "cuisine": "egyéb"}, {"name": "VEPŘOVÝ ŘÍZEK z krkovice smažený v klasické strouhance, mačkané brambory se slaninou a cibulí, marinované salátové okurky se zakysanou smetanou a koprem ... 1, 3, 7 Schnitzel from pork neck, breaded and fried, mashed potatoes with", "price": 199, "category": "saláta", "cuisine": "cseh"}, {"name": "EIDAM 40% smažený v trojobalu, vařené brambory s máslem a pažitkou, tatarská omáčka ... 1, 3, 7, 10 Breaded and fried Edam (40% fat), boiled potatoes with butter and chives, tartar sauce", "price": 179, "category": "főétel", "cuisine": "egyéb"}, {"name": "Salátové okurky se zakysanou smetanou a koprem ... 7 Cucumber salad with sour cream and dill", "price": 57, "category": "saláta", "cuisine": "egyéb"}]}, {"slug": "4806-restaurace-u-sv-antonicka", "name": "Restaurace U sv. Antoníčka", "district": "Praha 7", "districtSlug": "praha-7", "url": "https://www.menicka.cz/4806-restaurace-u-sv-antonicka.html", "distA_km": null, "distA_min": null, "distB_km": null, "distB_min": null, "items": [{"name": "Jemný zeleninový krém, krutony", "price": 52, "category": "leves", "cuisine": "egyéb"}, {"name": "Hovězí vývar s masem a nudlemi", "price": 52, "category": "leves", "cuisine": "cseh"}, {"name": "Frankfurtská s uzeninou", "price": 52, "category": "főétel", "cuisine": "egyéb"}, {"name": "DENNÍ NABÍDKA 500 gr Vepřová žebra BBQ s nakládanou zeleninou a rozpečeným chlebem", "price": 220, "category": "főétel", "cuisine": "egyéb"}, {"name": "gr Kuřecí směs palivec s opečeným bramborem", "price": 182, "category": "főétel", "cuisine": "egyéb"}, {"name": "gr Čevabčiči s vařeným bramborem, hořčicí a cibulkou", "price": 179, "category": "főétel", "cuisine": "egyéb"}, {"name": "gr Kuřecí steak s hermelínem a brusinkami, hranolky", "price": 189, "category": "főétel", "cuisine": "ázsiai"}, {"name": "gr Balounova mísa (uzené, sekaná a vepřové), zelí a variace knedlíků", "price": 182, "category": "főétel", "cuisine": "cseh"}, {"name": "gr Hovězí pečeně v koprové omáčce, houskový knedlík", "price": 184, "category": "főétel", "cuisine": "cseh"}, {"name": "gr Cikánská vepřová plec, houskový knedlík", "price": 179, "category": "főétel", "cuisine": "cseh"}, {"name": "gr Vepřová plec na mrkvi, vařený brambor", "price": 179, "category": "főétel", "cuisine": "egyéb"}, {"name": "gr Smažená mořská štika, vařený brambor, tatarská omáčka", "price": 182, "category": "főétel", "cuisine": "egyéb"}, {"name": "gr Ceasar salát s kuřecím masem, krutony a parmazánem", "price": 179, "category": "saláta", "cuisine": "egyéb"}, {"name": "gr Smažený hermelín se šunkou, vařené brambory a tatarská omáčka", "price": 179, "category": "főétel", "cuisine": "egyéb"}, {"name": "gr Mix řízečků s vařeným bramborem, okurka, citron", "price": 182, "category": "főétel", "cuisine": "egyéb"}]}, {"slug": "6481-stereo", "name": "Stereo", "district": "Praha 7", "districtSlug": "praha-7", "url": "https://www.menicka.cz/6481-stereo.html", "distA_km": 0.87, "distA_min": 10, "distB_km": 1.64, "distB_min": 20, "items": [{"name": "brokolicový krém s máslovými krutony", "price": 34, "category": "leves", "cuisine": "egyéb"}, {"name": "hovězí stroganov/ proužky kýty v omáčce z pasírovaných tomat se žampiony a nakládanými okurkami, rýže basmati", "price": 165, "category": "főétel", "cuisine": "egyéb"}, {"name": "gruzínské čachochbili/ pečené kuřecí stehno v tomatové omáčce s česnekem a koriandrem, pšeničný máslový kuskus", "price": 165, "category": "főétel", "cuisine": "cseh"}, {"name": "kuřecí řízek/ smažené kuřecí prso, máslová bramborová kaše, sladkokyselý okurkový salát", "price": 165, "category": "saláta", "cuisine": "cseh"}, {"name": "steak s coleslawem/ grilovaná krkovice, pečené kouřové brambory, tatarka, zelný salát coleslaw", "price": 165, "category": "saláta", "cuisine": "cseh"}]}, {"slug": "6937-restaurace-v-haji", "name": "Restaurace V Háji", "district": "Praha 7", "districtSlug": "praha-7", "url": "https://www.menicka.cz/6937-restaurace-v-haji.html", "distA_km": null, "distA_min": null, "distB_km": null, "distB_min": null, "items": [{"name": "0, 3l Kuřecí vývar s masem, nudle", "price": 40, "category": "leves", "cuisine": "cseh"}, {"name": "0, 3l Kapustová krémová se šunkou", "price": 45, "category": "leves", "cuisine": "egyéb"}, {"name": "gr Trhané vepřové maso s japaňelos a cheddarem, hranolky", "price": 178, "category": "főétel", "cuisine": "egyéb"}, {"name": "gr Kuřecí steak s broskví a sýrem, hranolky", "price": 178, "category": "főétel", "cuisine": "egyéb"}, {"name": "gr Vepřový steak se slaninou, opečený brambor", "price": 178, "category": "főétel", "cuisine": "egyéb"}, {"name": "gr Smažená treska s hranolky, tatarská omáčka, citrón", "price": 174, "category": "főétel", "cuisine": "egyéb"}, {"name": "gr Opečená vepřová žebra s BBQ omáčkou, štouchaný br, coleslaw", "price": 178, "category": "főétel", "cuisine": "egyéb"}, {"name": "gr Rajská omáčka, houskový knedlík", "price": 165, "category": "főétel", "cuisine": "cseh"}, {"name": "gr Svíčková na smetaně, brusinkový terč, houskový knedlík", "price": 165, "category": "főétel", "cuisine": "cseh"}, {"name": "150gr Masová směs se zeleninou, bramboráčky", "price": 175, "category": "főétel", "cuisine": "egyéb"}, {"name": "gr Segedínský guláš, houskový knedlík", "price": 160, "category": "főétel", "cuisine": "cseh"}, {"name": "gr Záhorácký závitek, brambor", "price": 165, "category": "főétel", "cuisine": "egyéb"}]}, {"slug": "2421-restaurace-u-blekotu", "name": "Restaurace U Blekotů", "district": "Praha 8", "districtSlug": "praha-8", "url": "https://www.menicka.cz/2421-restaurace-u-blekotu.html", "distA_km": null, "distA_min": null, "distB_km": null, "distB_min": null, "items": [{"name": "170g Pečená vepřová líčka se špenátem a bramborovým knedlíkem", "price": 225, "category": "főétel", "cuisine": "cseh"}, {"name": "150g Vepřový vylítaný ptáček s jasmínovou rýží", "price": 199, "category": "főétel", "cuisine": "egyéb"}, {"name": "150g Segedínský guláš s houskovým knedlíkem", "price": 219, "category": "főétel", "cuisine": "cseh"}, {"name": "200g Smažené filé, hranolky Julienne, tatarská omáčka", "price": 209, "category": "főétel", "cuisine": "egyéb"}, {"name": "150g Smažený vepřový řízek se šťouchaným bramborem a okurkou", "price": 219, "category": "főétel", "cuisine": "cseh"}]}]</script>
+<script>
+(function(){
+  "use strict";
+
+  var RESTAURANTS = JSON.parse(document.getElementById("restaurants-data").textContent);
+
+  var state = {
+    districts: new Set(),
+    categories: new Set(),
+    cuisines: new Set(),
+    keyword: "",
+    priceMin: 34,
+    priceMax: 325,
+    refpoint: "none",
+    sort: "value"
+  };
+
+  var PRICE_FLOOR = 34;
+  var PRICE_CEIL = 325;
+
+  function stripAccents(s){
+    return s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+  }
+  function norm(s){
+    return stripAccents(String(s || "")).toLowerCase();
+  }
+  function escapeHtml(s){
+    return String(s || "").replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function mainDishPrice(restaurant){
+    var mains = restaurant.items.filter(function(it){ return it.category === "főétel"; });
+    var pool = mains.length ? mains : restaurant.items;
+    return pool.reduce(function(min, it){ return Math.min(min, it.price); }, Infinity);
+  }
+
+  function visibleItemsFor(restaurant){
+    var kw = state.keyword;
+    var restaurantNameMatches = kw === "" || norm(restaurant.name).indexOf(kw) !== -1;
+    return restaurant.items.filter(function(it){
+      if (state.categories.size && !state.categories.has(it.category)) return false;
+      if (state.cuisines.size && !state.cuisines.has(it.cuisine)) return false;
+      if (it.price < state.priceMin || it.price > state.priceMax) return false;
+      if (kw !== "" && !restaurantNameMatches && norm(it.name).indexOf(kw) === -1) return false;
+      return true;
+    });
+  }
+
+  function buildCard(restaurant, visibleItems){
+    var article = document.createElement("article");
+    article.className = "ticket";
+    article.dataset.slug = restaurant.slug;
+
+    var distHtml = "";
+    if (state.refpoint !== "none") {
+      var km = state.refpoint === "A" ? restaurant.distA_km : restaurant.distB_km;
+      var min = state.refpoint === "A" ? restaurant.distA_min : restaurant.distB_min;
+      if (km !== null && km !== undefined) {
+        distHtml = '<div class="dist-badges"><span class="dist-badge">📍 ' + km.toFixed(2) +
+          ' km · 🚶 kb. ' + min + ' perc (Pont ' + state.refpoint + ')</span></div>';
+      }
+    }
+
+    var itemsHtml = visibleItems.map(function(it){
+      return (
+        '<li>' +
+          '<span class="item-name">' + escapeHtml(it.name) + '</span>' +
+          '<span class="leader"></span>' +
+          '<span class="item-price">' + it.price + ' Kč</span>' +
+        '</li>' +
+        '<div class="tag-row"><span class="tag">' + escapeHtml(it.category) + '</span><span class="tag">' + escapeHtml(it.cuisine) + '</span></div>'
+      );
+    }).join("");
+
+    article.innerHTML =
+      '<div class="ticket-head">' +
+        '<div>' +
+          '<h2><a href="' + escapeHtml(restaurant.url) + '" target="_blank" rel="noopener">' + escapeHtml(restaurant.name) + '</a></h2>' +
+          '<div class="ticket-meta">' + escapeHtml(restaurant.district) + '</div>' +
+          distHtml +
+        '</div>' +
+        '<span class="district-badge">' + escapeHtml(restaurant.district) + '</span>' +
+      '</div>' +
+      '<ul class="item-list">' + itemsHtml + '</ul>';
+
+    return article;
+  }
+
+  function render(){
+    var results = document.getElementById("results");
+    results.innerHTML = "";
+
+    var filtered = RESTAURANTS.filter(function(r){
+      if (state.districts.size && !state.districts.has(r.districtSlug)) return false;
+      return true;
+    }).map(function(r){
+      return { restaurant: r, visibleItems: visibleItemsFor(r) };
+    }).filter(function(entry){
+      return entry.visibleItems.length > 0;
+    });
+
+    filtered.sort(function(a, b){
+      if (state.sort === "value") {
+        return mainDishPrice(a.restaurant) - mainDishPrice(b.restaurant);
+      }
+      var cheapestA = Math.min.apply(null, a.visibleItems.map(function(it){ return it.price; }));
+      var cheapestB = Math.min.apply(null, b.visibleItems.map(function(it){ return it.price; }));
+      var priciestA = Math.max.apply(null, a.visibleItems.map(function(it){ return it.price; }));
+      var priciestB = Math.max.apply(null, b.visibleItems.map(function(it){ return it.price; }));
+      if (state.sort === "price-asc") return cheapestA - cheapestB;
+      if (state.sort === "price-desc") return priciestB - priciestA;
+      return 0;
+    });
+
+    if (!filtered.length) {
+      var empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = "Nincs a szűrésnek megfelelő találat. Próbáld tágítani a feltételeket.";
+      results.appendChild(empty);
+    } else {
+      filtered.forEach(function(entry){
+        results.appendChild(buildCard(entry.restaurant, entry.visibleItems));
+      });
+    }
+
+    var itemCount = filtered.reduce(function(sum, e){ return sum + e.visibleItems.length; }, 0);
+    document.getElementById("result-count").innerHTML =
+      "<strong>" + filtered.length + "</strong> étterem &middot; <strong>" + itemCount + "</strong> étel a jelenlegi szűréssel";
+
+    return filtered;
+  }
+
+  // --- Chip szűrők (kerület / kategória / konyha) ---
+  document.querySelectorAll(".chip[data-filter]").forEach(function(chip){
+    chip.addEventListener("click", function(){
+      var filter = chip.dataset.filter;
+      var value = chip.dataset.value;
+      var set = filter === "district" ? state.districts : (filter === "category" ? state.categories : state.cuisines);
+      if (set.has(value)) { set.delete(value); chip.classList.remove("active"); }
+      else { set.add(value); chip.classList.add("active"); }
+      render();
+    });
+  });
+
+  // --- Kulcsszó keresés ---
+  var searchInput = document.getElementById("keyword-search");
+  searchInput.addEventListener("input", function(){
+    state.keyword = norm(searchInput.value.trim());
+    render();
+  });
+
+  // --- Ár csúszka (két végű) ---
+  var priceMinInput = document.getElementById("price-min");
+  var priceMaxInput = document.getElementById("price-max");
+  var priceMinLabel = document.getElementById("price-min-label");
+  var priceMaxLabel = document.getElementById("price-max-label");
+
+  function syncPriceInputs(){
+    var lo = parseInt(priceMinInput.value, 10);
+    var hi = parseInt(priceMaxInput.value, 10);
+    if (lo > hi) { var tmp = lo; lo = hi; hi = tmp; }
+    state.priceMin = lo;
+    state.priceMax = hi;
+    priceMinLabel.textContent = lo;
+    priceMaxLabel.textContent = hi;
+    render();
+  }
+  priceMinInput.addEventListener("input", syncPriceInputs);
+  priceMaxInput.addEventListener("input", syncPriceInputs);
+
+  // --- Referenciapont váltó ---
+  document.querySelectorAll('input[name="refpoint"]').forEach(function(radio){
+    radio.addEventListener("change", function(){
+      state.refpoint = radio.value;
+      render();
+    });
+  });
+
+  // --- Rendezés ---
+  document.getElementById("sort-select").addEventListener("change", function(e){
+    state.sort = e.target.value;
+    render();
+  });
+
+  // --- Szűrők törlése ---
+  document.getElementById("reset-filters").addEventListener("click", function(){
+    state.districts.clear();
+    state.categories.clear();
+    state.cuisines.clear();
+    state.keyword = "";
+    state.priceMin = PRICE_FLOOR;
+    state.priceMax = PRICE_CEIL;
+    state.refpoint = "none";
+    state.sort = "value";
+
+    document.querySelectorAll(".chip.active").forEach(function(c){ c.classList.remove("active"); });
+    searchInput.value = "";
+    priceMinInput.value = PRICE_FLOOR;
+    priceMaxInput.value = PRICE_CEIL;
+    priceMinLabel.textContent = PRICE_FLOOR;
+    priceMaxLabel.textContent = PRICE_CEIL;
+    document.querySelector('input[name="refpoint"][value="none"]').checked = true;
+    document.getElementById("sort-select").value = "value";
+
+    render();
+  });
+
+  // --- Napi meglepetés ---
+  document.getElementById("surprise-btn").addEventListener("click", function(){
+    var currentlyVisible = document.querySelectorAll("#results .ticket");
+    if (!currentlyVisible.length) return;
+    var pick = currentlyVisible[Math.floor(Math.random() * currentlyVisible.length)];
+    pick.scrollIntoView({ behavior: "smooth", block: "center" });
+    pick.classList.remove("flash");
+    void pick.offsetWidth; // reflow, hogy az animáció újra elinduljon
+    pick.classList.add("flash");
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

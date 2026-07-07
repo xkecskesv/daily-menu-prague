@@ -59,8 +59,8 @@ except ImportError:  # pragma: no cover
     sys.exit(1)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import scripts.config as config  # noqa: E402
-from scripts.coordinates import COORDINATES  # noqa: E402
+import config  # noqa: E402
+from coordinates import COORDINATES  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -160,6 +160,8 @@ def clean_name(name: str) -> str:
     # allergén-kódok levágása a végéről, pl. "... A: 1, 3, 7" vagy "(1,3,7)"
     name = re.sub(r"\(?A:?\s*[\d,\s]+\)?\s*$", "", name).strip()
     name = re.sub(r"\(\s*[\d,\s]+\)\s*$", "", name).strip()
+    # allergén felső index szám a név végén (pl. <em>5</em> -> "... zákusek 5")
+    name = re.sub(r"\s+\d{1,2}(?:,\s*\d{1,2})*$", "", name).strip()
     name = re.sub(r"\s+", " ", name).strip(" -–|,.:")
     return name
 
@@ -167,7 +169,20 @@ def clean_name(name: str) -> str:
 # ---------------------------------------------------------------------------
 # Étterem-blokkok kinyerése a kerület-oldal HTML-jéből
 # ---------------------------------------------------------------------------
+# Étterem-link mintája: lehet relatív ("2145-nev.html") vagy teljes URL
+# ("https://www.menicka.cz/2145-nev.html") is.
+NAME_LINK_RE = re.compile(r"(?:https?://[^\"'\s]+/)?\d+-[\w\-]+\.html")
+
+
 def find_restaurant_blocks(soup: BeautifulSoup):
+    # 1) Jelenlegi (2026-os) sablon: minden étterem egy div.menicka_detail
+    # blokkban van, ami tartalmazza a fejlécet (név, telefon) ÉS a napi
+    # menüt (div.menicka) is. Ez az elsődleges, mert a div.menicka
+    # ÖNMAGÁBAN csak az ételsorokat tartalmazza, a nevet nem.
+    blocks = soup.select("div.menicka_detail")
+    if blocks:
+        return blocks
+    # 2) Korábban ismert minták (ha a DOM visszaáll egy régebbi szerkezetre).
     blocks = soup.find_all("div", id=re.compile(r"^menicka-\d+$"))
     if blocks:
         return blocks
@@ -179,6 +194,32 @@ def find_restaurant_blocks(soup: BeautifulSoup):
         and tag.get("class")
         and any("menicka" in c.lower() for c in tag.get("class"))
     )
+    if blocks:
+        return blocks
+
+    # 2) Robusztus fallback, ha a wrapper div class/id megváltozott.
+    # Minden étteremhez tartozik egy egyedi "zasilanimenu/?add=<id>" linkes
+    # gomb (napi menü e-mailben küldése) - ez egy funkcionális link, ami
+    # sokkal ritkábban változik, mint egy CSS class/id név. Ebből
+    # kiindulva megkeressük a legszűkebb <div> ősöt, ami pontosan EGY
+    # egyedi étterem-linket (NNNN-slug.html) tartalmaz - ez lesz a blokk.
+    markers = soup.find_all("a", href=re.compile(r"zasilanimenu/\?add=\d+"))
+    blocks = []
+    seen = set()
+    for marker in markers:
+        parent = marker.parent
+        depth = 0
+        while parent is not None and depth < 12:
+            if parent.name == "div":
+                name_links = parent.find_all("a", href=NAME_LINK_RE)
+                unique_hrefs = {a.get("href") for a in name_links}
+                if len(unique_hrefs) == 1:
+                    if id(parent) not in seen:
+                        seen.add(id(parent))
+                        blocks.append(parent)
+                    break
+            parent = parent.parent
+            depth += 1
     return blocks
 
 
@@ -190,14 +231,75 @@ def extract_slug(href: str) -> str:
     return re.sub(r"\W+", "-", href).strip("-")
 
 
+def _menu_item_from_parts(raw_name: str, price_text: str) -> Optional[MenuItem]:
+    """Egy név+ár szövegpárból MenuItem-et épít, vagy None-t ad vissza, ha
+    zajos a név vagy nincs érvényes ár."""
+    raw_name = re.sub(r"^\d{1,2}[.)]\s*", "", raw_name)  # sorszám levágása
+    raw_name = clean_name(raw_name)
+    if not raw_name or is_noise(raw_name):
+        return None
+    price_match = PRICE_INLINE_RE.search(price_text) or PRICE_LINE_RE.match(price_text)
+    if not price_match:
+        return None
+    price = int(price_match.group(1))
+    if not (MIN_PRICE <= price <= MAX_PRICE):
+        return None
+    return MenuItem(
+        name=raw_name,
+        price=price,
+        category=categorize(raw_name),
+        cuisine=detect_cuisine(raw_name),
+    )
+
+
+def extract_structured_items(block) -> list[MenuItem]:
+    """A menicka.cz étteremenként eltérő DOM-sablont használhat a napi menü
+    megjelenítésére. Sorban kipróbáljuk az ismert mintákat, és az elsőt
+    vesszük, amelyik eredményt ad."""
+    items: list[MenuItem] = []
+
+    # Minta A: <div class="nabidka_N">név</div> <div class="cena">ár</div>
+    # (N=1,2,3... - a menicka.cz több menüszakaszt (pl. "Polévky",
+    # "Hlavní jídla") külön számozott nabidka_N/poradi_N class-csoportban ad ki)
+    for name_div in block.find_all("div", class_=re.compile(r"^nabidka_\d+$")):
+        price_div = name_div.find_next_sibling("div", class_="cena")
+        item = _menu_item_from_parts(
+            name_div.get_text(" ", strip=True),
+            price_div.get_text(strip=True) if price_div else "",
+        )
+        if item:
+            items.append(item)
+    if items:
+        return items
+
+    # Minta B: <li class="polevka"|"jidlo"> <div class="polozka">[sorszám] név</div>
+    #          <div class="cena">ár</div> </li>
+    for li in block.find_all("li", class_=["polevka", "jidlo"]):
+        polozka = li.find("div", class_="polozka")
+        if not polozka:
+            continue
+        cena = li.find("div", class_="cena")
+        item = _menu_item_from_parts(
+            polozka.get_text(" ", strip=True),
+            cena.get_text(strip=True) if cena else "",
+        )
+        if item:
+            items.append(item)
+    return items
+
+
 def parse_restaurant_block(block, district_slug: str, district_name: str) -> Optional[Restaurant]:
     # --- Név + link kinyerése ---
     a_tag = None
-    h2 = block.find("h2")
-    if h2:
-        a_tag = h2.find("a")
+    nazev_div = block.find("div", class_="nazev")
+    if nazev_div:
+        a_tag = nazev_div.find("a")
     if a_tag is None:
-        a_tag = block.find("a", href=re.compile(r"^\d+-[\w\-]+\.html"))
+        h2 = block.find("h2")
+        if h2:
+            a_tag = h2.find("a")
+    if a_tag is None:
+        a_tag = block.find("a", href=NAME_LINK_RE)
     if a_tag is None or not a_tag.get_text(strip=True):
         return None
 
@@ -209,8 +311,35 @@ def parse_restaurant_block(block, district_slug: str, district_name: str) -> Opt
     if not name or not slug:
         return None
 
-    # --- Étel-sorok kinyerése a blokk teljes szövegéből ---
-    text = block.get_text("\n", strip=True)
+    # --- Étel-sorok kinyerése: elsődlegesen strukturáltan a DOM-ból ---
+    # A menicka.cz éttermenként eltérő sablont használhat, ezért több ismert
+    # mintát is kipróbálunk (lásd extract_structured_items). Ez megbízhatóbb,
+    # mint a szöveg soronkénti tördelése, ezért ha talál találatot, azt
+    # használjuk.
+    structured_items = extract_structured_items(block)
+
+    if structured_items:
+        seen_keys = set()
+        unique_structured = []
+        for it in structured_items:
+            key = (normalize(it.name), it.price)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            unique_structured.append(it)
+        return Restaurant(
+            slug=slug,
+            name=name,
+            district_slug=district_slug,
+            district_name=district_name,
+            url=url,
+            items=unique_structured,
+        )
+
+    # --- Fallback: étel-sorok kinyerése a blokk teljes szövegéből ---
+    # (régebbi / eltérő sablonú oldalakhoz, ha a strukturált módszer üres)
+    text_source = block.find("div", class_="menicka") or block
+    text = text_source.get_text("\n", strip=True)
     lines = [ln.strip() for ln in text.split("\n")]
     lines = [ln for ln in lines if ln and normalize(ln) not in JUNK_LINES_EXACT]
 
@@ -342,6 +471,71 @@ def apply_distances(restaurants: list) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Automatikus geokódolás (OpenStreetMap Nominatim)
+# ---------------------------------------------------------------------------
+NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
+# A Nominatim udvariassági szabálya szerint max. 1 kérés / másodperc,
+# ezért a kéréseket sorban, várakozással küldjük (nem párhuzamosan).
+GEOCODE_DELAY_SEC = 1.1
+
+
+def geocode_restaurant(name: str, district_name: str) -> Optional[tuple[float, float]]:
+    """Étterem koordinátájának becslése név + kerület alapján, az ingyenes
+    OpenStreetMap Nominatim keresőjével. Nem 100%-ig pontos (pl. azonos nevű
+    éttermek vagy elgépelt címek esetén tévedhet), de nagy tömegű induló
+    adatnak jó kiindulópont - a coordinates.py-ban bármikor felülírható."""
+    query = f"{name}, {district_name}, Praha, Česko"
+    params = {"q": query, "format": "json", "limit": 1}
+    try:
+        resp = requests.get(
+            NOMINATIM_URL, params=params, headers=config.HTTP_HEADERS,
+            timeout=config.REQUEST_TIMEOUT,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except (requests.RequestException, ValueError) as exc:
+        log.debug("Geokódolási hiba (%s): %s", name, exc)
+        return None
+    if not data:
+        return None
+    try:
+        lat = float(data[0]["lat"])
+        lng = float(data[0]["lon"])
+    except (KeyError, ValueError, TypeError, IndexError):
+        return None
+    return lat, lng
+
+
+def persist_geocoded_coordinates(new_entries: dict, coordinates_path: Path) -> None:
+    """Az automatikusan geokódolt koordinátákat beírja a coordinates.py
+    fájlba, a meglévő (kézzel felvitt) bejegyzések megtartásával. A COORDINATES
+    szótár záró '}' jele elé fűzi be az új sorokat."""
+    if not new_entries:
+        return
+    try:
+        content = coordinates_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        log.warning("Nem sikerült beolvasni a coordinates.py-t az automatikus frissítéshez: %s", exc)
+        return
+    stripped = content.rstrip()
+    idx = stripped.rfind("}")
+    if idx == -1:
+        log.warning(
+            "Nem sikerült automatikusan frissíteni a coordinates.py-t "
+            "(nem található lezáró '}' - illeszd be kézzel az alábbi sorokat)."
+        )
+        for slug, (lat, lng, label) in sorted(new_entries.items()):
+            log.info('  "%s": (%s, %s),  # %s', slug, lat, lng, label)
+        return
+    lines = ["\n    # --- Automatikusan geokódolva (OpenStreetMap Nominatim) ---\n"]
+    for slug, (lat, lng, label) in sorted(new_entries.items()):
+        lines.append(f'    "{slug}": ({lat}, {lng}),  # {label}\n')
+    new_content = stripped[:idx] + "".join(lines) + stripped[idx:] + "\n"
+    coordinates_path.write_text(new_content, encoding="utf-8")
+    log.info("A coordinates.py automatikusan frissítve: %d új koordináta hozzáadva.", len(new_entries))
+
+
+# ---------------------------------------------------------------------------
 # JSON-szerializálás a sablonhoz
 # ---------------------------------------------------------------------------
 def restaurants_to_json(restaurants: list) -> str:
@@ -407,7 +601,10 @@ def render_html(restaurants: list, out_path: Path, template_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 # Fő futás
 # ---------------------------------------------------------------------------
-def run(offline_dir: Optional[Path], debug: bool, out_path: Path, template_dir: Path) -> None:
+def run(
+    offline_dir: Optional[Path], debug: bool, out_path: Path, template_dir: Path,
+    geocode: bool = False, coordinates_path: Optional[Path] = None,
+) -> None:
     all_restaurants: list = []
 
     for slug, name in config.DISTRICTS.items():
@@ -431,6 +628,32 @@ def run(offline_dir: Optional[Path], debug: bool, out_path: Path, template_dir: 
         all_restaurants.extend(restaurants)
 
     apply_distances(all_restaurants)
+
+    if geocode:
+        missing = [r for r in all_restaurants if r.slug not in COORDINATES]
+        if missing:
+            log.info(
+                "Geokódolás indítása %d hiányzó étteremhez (OpenStreetMap Nominatim, "
+                "kb. %.1f mp/étterem, türelem)...", len(missing), GEOCODE_DELAY_SEC,
+            )
+            new_entries = {}
+            found, failed = 0, 0
+            for i, r in enumerate(missing, start=1):
+                coords = geocode_restaurant(r.name, r.district_name)
+                if coords:
+                    COORDINATES[r.slug] = coords
+                    new_entries[r.slug] = (coords[0], coords[1], f"{r.name} – {r.district_name} (automatikus)")
+                    found += 1
+                else:
+                    failed += 1
+                if i < len(missing):
+                    time.sleep(GEOCODE_DELAY_SEC)
+            log.info("Geokódolás kész: %d sikeres, %d sikertelen (ezekhez kézzel kell koordinátát megadni).",
+                      found, failed)
+            if new_entries:
+                target_path = coordinates_path or (Path(__file__).resolve().parent / "coordinates.py")
+                persist_geocoded_coordinates(new_entries, target_path)
+                apply_distances(all_restaurants)  # újraszámolás a most kapott koordinátákkal
 
     if debug:
         missing = [r for r in all_restaurants if r.slug not in COORDINATES]
@@ -466,6 +689,13 @@ def main():
         default=str(Path(__file__).resolve().parent.parent / "templates"),
         help="a Jinja2 sablonokat tartalmazó könyvtár",
     )
+    parser.add_argument(
+        "--geocode", action="store_true",
+        help=(
+            "hiányzó koordináták automatikus kitöltése OpenStreetMap Nominatim "
+            "keresővel (név + kerület alapján), majd elmentés a coordinates.py-ba"
+        ),
+    )
     args = parser.parse_args()
 
     if args.debug:
@@ -476,6 +706,8 @@ def main():
     run(
         offline_dir=Path(args.offline) if args.offline else None,
         debug=args.debug,
+        geocode=args.geocode,
+        coordinates_path=Path(__file__).resolve().parent / "coordinates.py",
         out_path=Path(args.out),
         template_dir=Path(args.template_dir),
     )
